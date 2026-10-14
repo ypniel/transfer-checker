@@ -56,7 +56,7 @@ Sources: Department of Education, Standard 7 factsheet (updated 2 October 2026);
 **Must apply from**
 - New visa needed if the proposed course ends after the visa end date, or the student is not on a primary 500 visa.
 - Lodged before 2 Oct 2026 → old rules (Sch 13 cl. 16601).
-- Primary 500 holder, not exempt → Offshore, and must be offshore at grant (1222(3)(aa), 500.411(1)).
+- Primary 500 holder, not exempt → Offshore, and must be offshore at grant (1222(3)(aa), 500.411(1)), unless the **course progression pathway** applies (instrument under 1222(5)(d)): the principal course of the current visa is complete and the new course is at a higher AQF level (Higher Education must go to Higher Education; no-AQF to no-AQF only for school students).
 - Primary 500 holder in an exempt class (Defence, Foreign Affairs, school, instrument) → Onshore (1222(3A)).
 - Secondary 500 or other substantive visa → Onshore, to be confirmed against 1222(4A) and 1222(5)(e).
 - No substantive visa → Onshore only via the ART set-aside pathway within 28 days, once (1222(4B)); otherwise Offshore.

@@ -57,8 +57,11 @@ fillLevels($('newLevel'));
 buildCoes();
 $('asOf').value = today();
 
-const toggleArt = () => $('artBlock').classList.toggle('hidden', $('visaType').value !== 'noSubstantive');
-$('visaType').addEventListener('change', toggleArt);
+const toggleArt = () => {
+  const ended = $('visaEnd').value && $('visaEnd').value < ($('lodgeDate').value || $('asOf').value);
+  $('artBlock').classList.toggle('hidden', !($('visaType').value === 'noSubstantive' || ended));
+};
+['visaType', 'visaEnd', 'asOf', 'lodgeDate'].forEach(id => $(id).addEventListener('change', toggleArt));
 toggleArt();
 
 $('clearBtn').addEventListener('click', () => {
@@ -85,6 +88,7 @@ function readInput() {
     priorNoSubGrant: $('priorNoSubGrant').checked,
     releaseBasis: $('releaseBasis').value,
     under18: $('under18').checked,
+    completed: $('completed').value,
     semesters: $('semesters').value === '' ? null : Number($('semesters').value),
     lodgeDate: $('lodgeDate').value,
     coes,
@@ -96,8 +100,30 @@ function readInput() {
 }
 
 // ---------- rules ----------
+// Course progression pathway (instrument under 1222(5)(d)), as described in a Home Affairs invalid-application notice.
+// A primary 500 holder in Australia can still lodge onshore if the principal course for the current visa
+// (or an alternative course consistent with condition 8202) is complete and the new course progresses.
+function courseProgression(x, principal) {
+  if (!principal) return { unknown: true, why: 'Enter the COE for the principal course of the current visa.' };
+  let completed = x.completed, assumed = null;
+  if (!completed && principal.end) {
+    const at = x.lodgeDate || x.asOf;
+    completed = principal.end <= at ? 'yes' : 'no';
+    assumed = `Assumed the principal course ${completed === 'yes' ? 'is' : 'is not'} completed, because its end date (${fmt(principal.end)}) is ${completed === 'yes' ? 'on or before' : 'after'} the ${x.lodgeDate ? 'lodgement' : 'assessment'} date. Confirm with the completion certificate or final transcript.`;
+  }
+  if (completed === 'no') return { ok: false, assumed, why: 'the principal course for the current visa has not been completed.' };
+  if (completed !== 'yes') return { unknown: true, why: 'Confirm whether the principal course for the current visa has been completed (or an alternative course consistent with visa condition 8202), and keep the evidence.' };
+  const done = levelOf(principal.level), next = levelOf(x.newLevel);
+  if (done.rank === null || next.rank === null) return { unknown: true, why: 'Select the course level of the completed course and of the proposed course.' };
+  if (done.rank > 0 && !(next.rank > done.rank)) return { ok: false, assumed, why: `the completed course has an AQF level (${done.label}) and the new course (${next.label}) is not a higher AQF level.` };
+  if (done.rank === 0 && next.rank === 0 && principal.level !== 'school') return { ok: false, assumed, why: 'neither the completed course nor the new course has an AQF level, and the completed course was not undertaken as a school student.' };
+  const he = done.rank >= 7 ? ' The completed course was higher education, so confirm the new course is delivered by a higher education provider.' : '';
+  return { ok: true, assumed, why: `The student holds a Subclass 500 visa but appears to meet the course progression pathway: the principal course is complete and the new course (${next.label}) is a higher level than the completed course (${done.label}). The application must be accompanied by evidence of completion and progression; keep it on file.${he}` };
+}
+
 function assess(x) {
   const flags = [];
+  const assumptions = [];
   const refs = new Set();
 
   // Data checks
@@ -120,6 +146,7 @@ function assess(x) {
     // Reverts to 6 months for all students from 1 July 2027 (Standard 7 factsheet, updated 2 Oct 2026).
     const months = isSchool || x.asOf >= '2027-07-01' ? 6 : 12;
     const sixMonths = addMonths(principal.start, months);
+    if (dated.length > 1) assumptions.push(`Principal course taken as COE ${principal.n} (${principal.provider || 'provider not entered'}), the COE with the latest start date. Confirm it is the course the current visa was granted on.`);
     const sameProvider = principal.provider && x.newProvider && norm(principal.provider) === norm(x.newProvider);
     refs.add('National Code 2018, Standard 7.1');
 
@@ -168,13 +195,19 @@ function assess(x) {
   }
 
   // ----- 2. New visa needed? -----
+  // A student whose visa has already ended no longer holds a substantive visa (1222(3)(aa) and 1222(4) turn on holding one).
+  const lodgeAt = x.lodgeDate || x.asOf;
+  const expired = !!x.visaEnd && x.visaEnd < lodgeAt && ['primary500', 'secondary500', 'otherSubstantive'].includes(x.visaType);
+  const vt = expired ? 'noSubstantive' : x.visaType;
+  if (expired) flags.push({ t: 'bad', m: `The visa ended on ${fmt(x.visaEnd)}, before the lodgement/assessment date. The student no longer holds a substantive visa, so they are assessed as having none: onshore lodgement is only possible through the ART set-aside pathway (1222(4B)). Check their current status in VEVO.` });
   let needVisa = null; // true / false / null (unknown)
   if (x.newEnd && x.visaEnd) needVisa = x.newEnd > x.visaEnd;
-  if (x.visaType !== 'primary500' && x.visaType !== 'offshore') needVisa = true; // not on a primary 500 → needs own 500
+  if (vt !== 'primary500' && vt !== 'offshore') needVisa = true; // not on a primary 500 → needs own 500
 
   // ----- 3. Where to apply -----
   let where = { answer: 'Unable to assess', cls: 'warn', why: 'Enter the visa end date and the proposed course end date.' };
   const lodge = x.lodgeDate || x.asOf;
+  if (needVisa === true && !x.lodgeDate) assumptions.push(`Assumed the new visa will be lodged on or after the assessment date (${fmt(x.asOf)}). Enter the lodgement date if it is known.`);
 
   if (needVisa === false) {
     where = { answer: 'No new visa needed', cls: 'good', why: `The current visa (ends ${fmt(x.visaEnd)}) covers the proposed course (ends ${fmt(x.newEnd)}). The student can transfer on the current visa.` };
@@ -182,20 +215,35 @@ function assess(x) {
     if (lodge < COMMENCEMENT) {
       where = { answer: 'Onshore (old rules)', cls: 'warn', why: `The application is lodged before ${fmt(COMMENCEMENT)}, so the amendments do not apply (Sch 13, Part 166, cl. 16601). Confirm the lodgement date with the agent.` };
       refs.add('Migration Regulations 1994, Sch 13 cl. 16601');
-    } else if (x.visaType === 'offshore') {
+    } else if (vt === 'offshore') {
       where = { answer: 'Offshore', cls: 'good', why: 'The student is outside Australia and applies from there as usual.' };
-    } else if (x.visaType === 'primary500') {
+    } else if (vt === 'primary500') {
       if (x.exempt !== 'none') {
         where = { answer: 'Onshore', cls: 'good', why: 'The student is in an exempt class, so the offshore requirement does not apply. Keep evidence of the exemption on file.' };
         refs.add('Sch 1 item 1222(3)(aa)(iii) and 1222(3A)');
       } else {
-        where = { answer: 'Offshore', cls: 'bad', why: 'The student holds a Subclass 500 visa as the primary applicant and needs a new one. They must be outside Australia when they lodge, and when the visa is granted.' };
-        refs.add('Sch 1 item 1222(3)(aa)'); refs.add('Sch 2 cl. 500.411(1)');
+        const base = 'The student holds a Subclass 500 visa as the primary applicant and needs a new one. They must be outside Australia when they lodge, and when the visa is granted.';
+        const prog = courseProgression(x, release.principal);
+        if (prog.assumed) assumptions.push(prog.assumed);
+        refs.add('Sch 1 item 1222(3)(aa)');
+        if (prog.ok) {
+          where = { answer: prog.assumed ? 'Likely onshore (course progression)' : 'Onshore (course progression)', cls: 'warn', why: prog.why };
+          refs.add('Instrument under Sch 1 item 1222(5)(d): course progression');
+        } else if (prog.unknown) {
+          where = { answer: 'Offshore, unless course progression is met', cls: 'warn', why: base + ' They can lodge onshore only if they meet the course progression pathway. ' + prog.why };
+          refs.add('Instrument under Sch 1 item 1222(5)(d): course progression'); refs.add('Sch 2 cl. 500.411(1)');
+        } else {
+          where = { answer: 'Offshore', cls: 'bad', why: base + ' The course progression pathway is not met because ' + prog.why };
+          refs.add('Sch 2 cl. 500.411(1)');
+        }
+        if (x.lodgeDate && x.lodgeDate <= x.asOf) {
+          flags.push({ t: 'bad', m: `A new visa application was already lodged on ${fmt(x.lodgeDate)}, after the rules commenced. Confirm where the student was on that date: if they were in Australia, the application was made contrary to 1222(3)(aa) and is likely not valid. Home Affairs issues a notice of invalid application (no merits review; the fee can be repaid). A student on a bridging visa must lodge a valid application before it ceases. Without course progression or an exempt class, that means lodging from outside Australia. A migration agent should confirm.` });
+        }
       }
-    } else if (x.visaType === 'secondary500' || x.visaType === 'otherSubstantive') {
+    } else if (vt === 'secondary500' || vt === 'otherSubstantive') {
       where = { answer: 'Onshore (confirm)', cls: 'warn', why: 'The student holds a substantive visa, so onshore lodgement may be open if they meet 1222(4A) and are not in a class excluded by instrument under 1222(5)(e). A migration agent should confirm.' };
       refs.add('Sch 1 item 1222(4), (4A)'); refs.add('Sch 1 item 1222(5)(e)');
-    } else if (x.visaType === 'noSubstantive') {
+    } else if (vt === 'noSubstantive') {
       refs.add('Sch 1 item 1222(4B)');
       if (x.artSetAside && x.artDate && !x.priorNoSubGrant) {
         const deadline = addDays(x.artDate, 28);
@@ -223,11 +271,14 @@ function assess(x) {
       flags.push({ t: 'bad', m: 'Higher Education to VET: students can no longer come to Australia for Higher Education and transfer onshore to VET.' });
     }
   }
+  if (['phd', 'providerDefault', 'courseDeferral'].includes(x.exempt)) {
+    flags.push({ t: 'warn', m: 'This exemption is named in the Minister\'s media release of 2 October 2026, but the regulation text lists only Defence, Foreign Affairs and school students plus classes set by instrument under 1222(5)(d). Confirm the instrument covers this class, and keep the evidence on file, before relying on onshore lodgement.' });
+  }
   if (x.exempt !== 'none' && x.visaType !== 'primary500') {
     flags.push({ t: 'warn', m: 'An exempt class is selected but the student is not a primary 500 holder — the 1222(3A) exemption only affects primary 500 holders.' });
   }
 
-  return { release, where, needVisa, flags, refs: [...refs] };
+  return { release, where, needVisa, flags, assumptions, refs: [...refs] };
 }
 
 // ---------- summary ----------
@@ -242,6 +293,7 @@ function summary(x, r) {
   L.push(`- Type: ${visaLabel}`);
   L.push(`- Grant date: ${fmt(x.visaGrant)}  |  End date: ${fmt(x.visaEnd)}`);
   if (x.exempt !== 'none') L.push(`- Exempt class: ${exemptLabel}`);
+  if (x.completed) L.push(`- Principal course for the current visa completed: ${x.completed === 'yes' ? 'Yes' : 'No'}`);
   L.push('');
   L.push('COEs provided');
   if (!x.coes.length) L.push('- None entered');
@@ -259,6 +311,11 @@ function summary(x, r) {
     L.push('Flags');
     r.flags.forEach(f => L.push(`- ${f.m}`));
   }
+  if (r.assumptions.length) {
+    L.push('');
+    L.push('Assumptions (verify)');
+    r.assumptions.forEach(a => L.push(`- ${a}`));
+  }
   L.push('');
   L.push('Legislative basis');
   L.push('- Migration Amendment (Student Visa Reform) Regulations 2026, commenced 2 October 2026; applies to visa applications made on or after that date.');
@@ -272,12 +329,14 @@ function summary(x, r) {
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function render(x, r) {
   const card = (q, o) => `<div class="result ${o.cls}"><div class="q">${q}</div><div class="a">${esc(o.answer)}</div><p>${esc(o.why)}</p></div>`;
+  const asm = r.assumptions.length ? `<div class="assume"><strong>Assumptions made. Please verify:</strong><ul class="flags">${r.assumptions.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>` : '';
   const flags = r.flags.length ? `<ul class="flags">${r.flags.map(f => `<li>${esc(f.m)}</li>`).join('')}</ul>` : '';
   $('results').innerHTML = `
     <h2>Results</h2>
     ${card('Release required?', r.release)}
     ${card('Must apply from?', r.where)}
     ${flags}
+    ${asm}
     <div class="summary-head"><h3>Summary</h3><button type="button" class="small" id="copy">Copy</button></div>
     <textarea id="summary" readonly>${esc(summary(x, r))}</textarea>`;
   $('copy').addEventListener('click', async () => {

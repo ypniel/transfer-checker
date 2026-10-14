@@ -51,6 +51,9 @@
               <option value="defence">Defence student</option>
               <option value="foreignAffairs">Foreign Affairs student</option>
               <option value="school">School student (cl. 500.111)</option>
+              <option value="phd">PhD / doctoral student (media release)</option>
+              <option value="providerDefault">Affected by provider default (media release)</option>
+              <option value="courseDeferral">Affected by course deferral (media release)</option>
               <option value="instrument">Class named in a ministerial instrument</option>
             </select>
           </label>
@@ -66,6 +69,16 @@
           <label class="check">
             <input type="checkbox" id="priorNoSubGrant">
             Previously granted a visa on an application made without a substantive visa
+          </label>
+        </div>
+        <div class="row">
+          <label>Principal course of the current visa completed?
+            <select id="completed">
+              <option value="">Not stated</option>
+              <option value="yes">Yes (evidence held)</option>
+              <option value="no">No</option>
+            </select>
+            <small>Needed for the course progression pathway. Leave blank and the app will guess from the course end date.</small>
           </label>
         </div>
         <div class="row">

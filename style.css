@@ -62,3 +62,6 @@ button.small { padding: 5px 12px; font-size: 13px; }
 .summary-head h3 { margin: 0; font-size: 14px; }
 textarea { width: 100%; min-height: 260px; font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px; resize: vertical; }
 .foot { font-size: 12px; padding-top: 16px; padding-bottom: 32px; }
+
+.assume { background: var(--warn-bg); border: 1px solid var(--warn); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px; }
+.assume ul { margin: 6px 0 0; }
