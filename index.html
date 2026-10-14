@@ -94,6 +94,12 @@
       <section>
         <h2>COEs provided</h2>
         <p class="hint">Enter the student's existing COEs in study order. The last course in the package is treated as the principal course.</p>
+        <div class="row">
+          <label>Semesters / terms completed at the principal provider
+            <input type="number" id="semesters" min="0" max="12" step="1" placeholder="Optional">
+            <small>Used as a cross-check only. The restriction is decided by calendar months from the principal course start date.</small>
+          </label>
+        </div>
         <div id="coes"></div>
       </section>
 
@@ -119,7 +125,7 @@
 
       <div class="actions">
         <button type="submit" class="primary">Check</button>
-        <button type="button" id="reset" class="ghost">Clear</button>
+        <button type="button" id="clearBtn" class="ghost">Clear</button>
       </div>
     </form>
 

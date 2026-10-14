@@ -61,7 +61,7 @@ const toggleArt = () => $('artBlock').classList.toggle('hidden', $('visaType').v
 $('visaType').addEventListener('change', toggleArt);
 toggleArt();
 
-$('reset').addEventListener('click', () => {
+$('clearBtn').addEventListener('click', () => {
   $('form').reset(); $('asOf').value = today(); $('newProvider').value = 'Holmes Institute'; toggleArt();
   $('results').innerHTML = '<h2>Results</h2><p class="empty">Fill in the form and press Check.</p>';
 });
@@ -85,6 +85,7 @@ function readInput() {
     priorNoSubGrant: $('priorNoSubGrant').checked,
     releaseBasis: $('releaseBasis').value,
     under18: $('under18').checked,
+    semesters: $('semesters').value === '' ? null : Number($('semesters').value),
     lodgeDate: $('lodgeDate').value,
     coes,
     newProvider: $('newProvider').value.trim(),
@@ -146,6 +147,15 @@ function assess(x) {
   }
   if (release.answer === 'Yes' && release.sixMonths && x.newStart && x.newStart >= release.sixMonths) {
     flags.push({ t: 'warn', m: `The restriction lifts on ${fmt(release.sixMonths)}, before the proposed Holmes start (${fmt(x.newStart)}). Holmes must not enrol the student before then without a release; confirm timing with compliance.` });
+  }
+  // Cross-check: semesters studied vs the calendar-month rule (the dates decide; semesters never override).
+  if (x.semesters !== null && x.semesters !== undefined && release.principal) {
+    const base = release.answer.startsWith('No') ? 'No' : release.answer;
+    if (base === 'Yes' && x.semesters >= 2) {
+      flags.push({ t: 'warn', m: `${x.semesters} semesters recorded, but 12 calendar months have not passed since the principal course started (${fmt(release.principal.start)}). The date rule still applies, so a release is still required. Check the term length: trimesters are about 4 months each.` });
+    } else if (base === 'No' && x.semesters <= 1 && release.answer === 'No') {
+      flags.push({ t: 'warn', m: `The dates show the restriction has passed, but only ${x.semesters} semester(s) are recorded. Check for a deferral, intermission or suspension, and confirm the principal course start date.` });
+    }
   }
   if (x.under18) {
     flags.push({ t: 'warn', m: 'Student is under 18: written confirmation from a parent or legal guardian supporting the transfer is required. If no parent or guardian is in Australia, Holmes must also confirm it accepts accommodation and welfare responsibility under Standard 5.' });
@@ -236,6 +246,7 @@ function summary(x, r) {
   L.push('COEs provided');
   if (!x.coes.length) L.push('- None entered');
   x.coes.forEach(c => L.push(`- COE ${c.n}: ${c.provider || '—'} | ${levelOf(c.level).rank === null ? '—' : levelOf(c.level).label} | ${fmt(c.start)} to ${fmt(c.end)}`));
+  if (x.semesters !== null && x.semesters !== undefined) L.push(`Semesters/terms completed at principal provider: ${x.semesters}`);
   L.push(`Proposed: ${x.newProvider || '—'} | ${levelOf(x.newLevel).rank === null ? '—' : levelOf(x.newLevel).label} | ${fmt(x.newStart)} to ${fmt(x.newEnd)}`);
   L.push('');
   L.push(`RELEASE REQUIRED: ${r.release.answer}`);
