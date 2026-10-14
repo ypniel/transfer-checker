@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transfer Student Checker</title>
+  <meta name="description" content="Checks release and visa lodgement requirements for transferring Subclass 500 students under the Student Visa Reform Regulations 2026.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <h1>Transfer Student Checker</h1>
+      <p class="sub">Release and visa lodgement check under the Migration Amendment (Student Visa Reform) Regulations 2026 and National Code Standard 7.</p>
+    </div>
+  </header>
+
+  <main class="wrap grid">
+    <form id="form" class="card" autocomplete="off">
+      <section>
+        <h2>Student and visa</h2>
+        <div class="row">
+          <label>Student name / ID
+            <input type="text" id="student" placeholder="Optional">
+          </label>
+          <label>Assessment date
+            <input type="date" id="asOf" required>
+          </label>
+        </div>
+        <div class="row">
+          <label>Visa grant date
+            <input type="date" id="visaGrant">
+          </label>
+          <label>Visa end date
+            <input type="date" id="visaEnd" required>
+          </label>
+        </div>
+        <div class="row">
+          <label>Current visa held
+            <select id="visaType">
+              <option value="primary500">Subclass 500 — primary applicant</option>
+              <option value="secondary500">Subclass 500 — secondary (dependant)</option>
+              <option value="otherSubstantive">Other substantive visa (onshore)</option>
+              <option value="noSubstantive">No substantive visa (e.g. bridging)</option>
+              <option value="offshore">Student is outside Australia</option>
+            </select>
+          </label>
+          <label>Exempt class (1222(3A))
+            <select id="exempt">
+              <option value="none">None</option>
+              <option value="defence">Defence student</option>
+              <option value="foreignAffairs">Foreign Affairs student</option>
+              <option value="school">School student (cl. 500.111)</option>
+              <option value="instrument">Class named in a ministerial instrument</option>
+            </select>
+          </label>
+        </div>
+        <div id="artBlock" class="row hidden">
+          <label class="check">
+            <input type="checkbox" id="artSetAside">
+            Previous student visa cancelled and the ART set the cancellation aside after the visa ended
+          </label>
+          <label>Date notified of ART decision
+            <input type="date" id="artDate">
+          </label>
+          <label class="check">
+            <input type="checkbox" id="priorNoSubGrant">
+            Previously granted a visa on an application made without a substantive visa
+          </label>
+        </div>
+        <div class="row">
+          <label>New visa lodgement date (if known)
+            <input type="date" id="lodgeDate">
+            <small>Leave blank to assume lodgement on or after the assessment date.</small>
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h2>COEs provided</h2>
+        <p class="hint">Enter the student's existing COEs in study order. The last course in the package is treated as the principal course.</p>
+        <div id="coes"></div>
+      </section>
+
+      <section>
+        <h2>Proposed course at new provider</h2>
+        <div class="row">
+          <label>Provider
+            <input type="text" id="newProvider" value="Holmes Institute">
+          </label>
+          <label>Course level
+            <select id="newLevel" class="level"></select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Start date
+            <input type="date" id="newStart">
+          </label>
+          <label>End date
+            <input type="date" id="newEnd" required>
+          </label>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button type="submit" class="primary">Check</button>
+        <button type="button" id="reset" class="ghost">Clear</button>
+      </div>
+    </form>
+
+    <aside id="results" class="card results" aria-live="polite">
+      <h2>Results</h2>
+      <p class="empty">Fill in the form and press Check.</p>
+    </aside>
+  </main>
+
+  <footer class="wrap foot">
+    <p>Operational guide only, not migration or legal advice. Visa strategy questions go to a registered migration agent. Rules apply to visa applications made on or after 2 October 2026.</p>
+  </footer>
+
+  <template id="coeTpl">
+    <fieldset class="coe">
+      <legend>COE <span class="n"></span></legend>
+      <div class="row four">
+        <label>Provider
+          <input type="text" data-f="provider" placeholder="e.g. ABC College">
+        </label>
+        <label>Course level
+          <select data-f="level" class="level"></select>
+        </label>
+        <label>Start
+          <input type="date" data-f="start">
+        </label>
+        <label>End
+          <input type="date" data-f="end">
+        </label>
+      </div>
+    </fieldset>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
