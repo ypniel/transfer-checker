@@ -2,7 +2,7 @@
 
 A static web app for admissions staff. Enter a transferring student's visa dates, up to 5 COEs and the proposed course, and it returns:
 
-- **Release required?** — National Code 2018, Standard 7 (first 6 months of the principal course)
+- **Release required?** — National Code 2018, Standard 7 (12-month restriction on the principal course from 2 Oct 2026; 6 months for school students)
 - **Must apply from?** — Onshore / Offshore, under the Migration Amendment (Student Visa Reform) Regulations 2026
 - **Summary** — a copy-ready note citing the provisions applied
 
@@ -43,9 +43,15 @@ To restrict access to staff, turn on Netlify password protection or put it behin
 
 **Release required**
 - Principal course = the COE with the latest start date (last course in the package).
+- Restriction period: **12 calendar months** of the principal course for non-school students from 2 October 2026; **6 months** for school students (first registered school course) and for everyone from **1 July 2027**.
 - Same provider as the proposed course → No (internal change).
-- Principal course not started, or under 6 months completed → Yes.
+- Principal course not started, or under the period completed → Yes.
+- Inside the period, the student can still transfer with a release from the current provider (recorded in PRISMS), if the provider or course ceased to be registered, after an ESOS sanction, or with government sponsor written support.
+- Flags: under 18 (parent/guardian consent, Standard 5 welfare), later courses on the visa affected by the transfer.
+- Flags: transfers to a lower AQF level, and Higher Education to VET, are not allowed.
 - Otherwise → No.
+
+Sources: Department of Education, Standard 7 factsheet (updated 2 October 2026); Ministers' Media Centre, "Student visa integrity reforms take effect today", 2 October 2026.
 
 **Must apply from**
 - New visa needed if the proposed course ends after the visa end date, or the student is not on a primary 500 visa.

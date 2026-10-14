@@ -83,6 +83,8 @@ function readInput() {
     artSetAside: $('artSetAside').checked,
     artDate: $('artDate').value,
     priorNoSubGrant: $('priorNoSubGrant').checked,
+    releaseBasis: $('releaseBasis').value,
+    under18: $('under18').checked,
     lodgeDate: $('lodgeDate').value,
     coes,
     newProvider: $('newProvider').value.trim(),
@@ -111,19 +113,48 @@ function assess(x) {
   if (dated.length) {
     // Principal course = last course of the package (latest start; tie → latest end)
     const principal = [...dated].sort((a, b) => (a.start === b.start ? (a.end || '').localeCompare(b.end || '') : a.start.localeCompare(b.start))).at(-1);
-    const sixMonths = addMonths(principal.start, 6);
+    // From 2 Oct 2026 (interim, until 30 Jun 2027): non-school students must complete 12 months of the
+    // principal course before transferring; school students stay at 6 months.
+    const isSchool = principal.level === 'school';
+    // Reverts to 6 months for all students from 1 July 2027 (Standard 7 factsheet, updated 2 Oct 2026).
+    const months = isSchool || x.asOf >= '2027-07-01' ? 6 : 12;
+    const sixMonths = addMonths(principal.start, months);
     const sameProvider = principal.provider && x.newProvider && norm(principal.provider) === norm(x.newProvider);
     refs.add('National Code 2018, Standard 7.1');
 
     if (sameProvider) {
       release = { answer: 'No', cls: 'good', why: `The principal course (COE ${principal.n}) is already with ${principal.provider}. This is an internal course change, not a provider transfer.`, principal, sixMonths };
     } else if (x.asOf < principal.start) {
-      release = { answer: 'Yes', cls: 'bad', why: `The principal course (COE ${principal.n}, ${principal.provider || 'provider not entered'}) has not started yet (starts ${fmt(principal.start)}). The student is within the first 6 months of their principal course.`, principal, sixMonths };
+      release = { answer: 'Yes', cls: 'bad', why: `The principal course (COE ${principal.n}, ${principal.provider || 'provider not entered'}) has not started yet (starts ${fmt(principal.start)}). The student is within the first ${months} months of their principal course.`, principal, sixMonths };
     } else if (x.asOf < sixMonths) {
-      release = { answer: 'Yes', cls: 'bad', why: `The student has not completed 6 months of the principal course (COE ${principal.n}, started ${fmt(principal.start)}). The restriction lifts on ${fmt(sixMonths)}.`, principal, sixMonths };
+      release = { answer: 'Yes', cls: 'bad', why: `The student has not completed ${months} months of the principal course (COE ${principal.n}, started ${fmt(principal.start)}). The restriction lifts on ${fmt(sixMonths)}.`, principal, sixMonths };
     } else {
-      release = { answer: 'No', cls: 'good', why: `The student passed 6 months of the principal course (COE ${principal.n}) on ${fmt(sixMonths)}.`, principal, sixMonths };
+      release = { answer: 'No', cls: 'good', why: `The student passed ${months} months of the principal course (COE ${principal.n}) on ${fmt(sixMonths)}.`, principal, sixMonths };
     }
+  }
+
+  // Ways a student inside the restriction period can still transfer (Standard 7 factsheet).
+  const BASIS = {
+    released: ['No (release obtained)', 'The current provider has released the student. The outcome must be recorded in PRISMS; a hard-copy letter is not required (an email is enough).'],
+    ceased: ['No (provider/course ceased)', 'The releasing provider, or the course the student is enrolled in, has ceased to be registered. Keep evidence on file.'],
+    sanction: ['No (ESOS sanction)', 'The releasing provider has a sanction imposed by the ESOS agency that prevents the student continuing. Keep evidence on file.'],
+    govSponsor: ['No (sponsor support)', 'A government sponsor considers the change to be in the student\'s best interests and has given written support. Keep the written support on file.'],
+  };
+  if (x.releaseBasis !== 'none' && BASIS[x.releaseBasis] && release.answer === 'Yes') {
+    const [ans, why] = BASIS[x.releaseBasis];
+    release = { ...release, answer: ans, cls: 'warn', why: why + ' Original finding: ' + release.why };
+  }
+  if (release.answer === 'Yes' && release.sixMonths && x.newStart && x.newStart >= release.sixMonths) {
+    flags.push({ t: 'warn', m: `The restriction lifts on ${fmt(release.sixMonths)}, before the proposed Holmes start (${fmt(x.newStart)}). Holmes must not enrol the student before then without a release; confirm timing with compliance.` });
+  }
+  if (x.under18) {
+    flags.push({ t: 'warn', m: 'Student is under 18: written confirmation from a parent or legal guardian supporting the transfer is required. If no parent or guardian is in Australia, Holmes must also confirm it accepts accommodation and welfare responsibility under Standard 5.' });
+  }
+  if (x.coes.some(c => c.start && c.start > x.asOf && release.principal && c !== release.principal && c.n !== release.principal.n)) {
+    flags.push({ t: 'warn', m: 'The transfer may change the start dates of later courses on the visa. The student must be released from those courses, or the later providers must agree to delay the start.' });
+  }
+  if (x.newStart && x.newStart >= '2027-07-01') {
+    flags.push({ t: 'warn', m: 'From 1 July 2027 onshore provider changes go through the new Student visa transfer stream, and the new visa must be granted before study starts. The 12-month rule here is the interim measure to 30 June 2027.' });
   }
 
   // ----- 2. New visa needed? -----
@@ -177,7 +208,10 @@ function assess(x) {
   const principalLevel = release.principal ? levelOf(release.principal.level) : null;
   const newLevel = levelOf(x.newLevel);
   if (principalLevel && principalLevel.rank != null && newLevel.rank != null && newLevel.rank < principalLevel.rank) {
-    flags.push({ t: 'warn', m: `Moving from ${principalLevel.label} to a lower level (${newLevel.label}). Confirm the change is consistent with the student's visa and GS assessment.` });
+    flags.push({ t: 'bad', m: `Moving from ${principalLevel.label} to a lower level (${newLevel.label}). The 2026 reforms only allow transfers at the same AQF level or higher; a student moving to a lower level needs a new Student visa.` });
+    if (principalLevel.rank >= 7 && newLevel.rank >= 4 && newLevel.rank <= 6) {
+      flags.push({ t: 'bad', m: 'Higher Education to VET: students can no longer come to Australia for Higher Education and transfer onshore to VET.' });
+    }
   }
   if (x.exempt !== 'none' && x.visaType !== 'primary500') {
     flags.push({ t: 'warn', m: 'An exempt class is selected but the student is not a primary 500 holder — the 1222(3A) exemption only affects primary 500 holders.' });

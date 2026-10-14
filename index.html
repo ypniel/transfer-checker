@@ -69,6 +69,21 @@
           </label>
         </div>
         <div class="row">
+          <label>Basis to transfer inside the restriction period
+            <select id="releaseBasis">
+              <option value="none">None</option>
+              <option value="released">Release granted by current provider</option>
+              <option value="ceased">Provider or course ceased to be registered</option>
+              <option value="sanction">ESOS sanction on current provider</option>
+              <option value="govSponsor">Government sponsor written support</option>
+            </select>
+          </label>
+          <label class="check">
+            <input type="checkbox" id="under18">
+            Student is under 18
+          </label>
+        </div>
+        <div class="row">
           <label>New visa lodgement date (if known)
             <input type="date" id="lodgeDate">
             <small>Leave blank to assume lodgement on or after the assessment date.</small>
